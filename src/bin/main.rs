@@ -1,65 +1,43 @@
 #![no_std]
 #![no_main]
 
-
 use esp_backtrace as _;
 use esp_hal::{
-    delay::Delay,
-    main,
-};
+    timer::timg::TimerGroup,
+    };
+use esp_hal_embassy::main;
 use esp_println::println;
 use nb::block;
-use raffstore::relais::Relais;
-use raffstore::can::Can;
-
-#[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
+use raffstore::relais::{Relais, relais_task};
+use raffstore::can::{Can, can_task};
+use embassy_executor::Spawner;
+use embassy_time::Duration;
+use embassy_time::Timer;
 
 #[main]
-fn main() -> ! {
+async fn main(spawner: Spawner) -> ! {
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
-    let delay = Delay::new();
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    esp_hal_embassy::init(timg0.timer0);
 
     let mut can = Can::new(peripherals.TWAI0, peripherals.GPIO14, peripherals.GPIO13);
 
     can.start();
 
     let mut relais = Relais::new(peripherals.I2C0, peripherals.GPIO21, peripherals.GPIO19);
-    relais.set(0,true);
-    delay.delay_millis(2000);
-    relais.set(1,true);
-    delay.delay_millis(2000);
-    relais.set(2,true);
-    delay.delay_millis(2000);
-    relais.set(3,true);
-    delay.delay_millis(200);
-    relais.set(4,true);
-    delay.delay_millis(200);
-    relais.set(5,true);
-    delay.delay_millis(200);
-    relais.set(6,true);
-    delay.delay_millis(200);
-    relais.set(7,true);
-    delay.delay_millis(200);
-    relais.set(8,true);
-    delay.delay_millis(200);
-    relais.set(9,true);
-    delay.delay_millis(200);
-    relais.set(10,true);
-    delay.delay_millis(200);
-    relais.set(11,true);
-    delay.delay_millis(200);
+
+    spawner.spawn(relais_task(relais)).unwrap();
+
+    spawner.spawn(can_task(can)).unwrap();
 
 loop {
+
     // let frame = block!(twai.receive()).unwrap();
-
-    // println!("Received a frame: {frame:?}");
-    // delay.delay_millis(1000);
+    // println!("Bla");
+    Timer::after(Duration::from_millis(3_000)).await;
 
 }
 }
 
-// for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.0/examples/src/bin
+// // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.0/examples/src/bin
