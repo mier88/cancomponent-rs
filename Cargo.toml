@@ -2,6 +2,7 @@
 edition = "2021"
 name    = "raffstore"
 version = "0.1.0"
+build = "build.rs"
 
 [[bin]]
 name = "raffstore"
@@ -12,18 +13,28 @@ critical-section = "1.2.0"
 esp-hal          = { version = "1.0.0-beta.0", features = ["esp32", "unstable"] }
 esp-println      = { version = "0.13", features = ["esp32","log"] }
 esp-backtrace    = { version = "0.15", features = ["esp32","println","panic-handler", "exception-handler"] }
+esp-hal-ota      = "0.4.1"
+esp-storage      = { version = "0.6.0", features = ["esp32"] }
 nb               = "1.1.0"
 embassy-executor = "0.7.0"
 embassy-sync     = "0.6.2"
 embassy-time     = "0.4.0"
 esp-hal-embassy  = { version = "0.7.0", features = ["esp32"] }
 embedded-can     = "0.4.1"
-static_cell      = { version = "2.1.0"}
+static_cell      = { version = "2.1.0", features = ["nightly"] }
+heapless         = "0.8.0"
+async-trait      = "0.1.88"
+
+[build-dependencies]
+vergen-git2 = { version = "1.0.0", features = ["build", "cargo", "rustc", "si"] }
 
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization
 opt-level = "s"
+
+[profile.dev.package.esp-storage]
+opt-level = 3
 
 [profile.release]
 codegen-units    = 1     # LLVM can perform better optimizations using a single thread

@@ -1,3 +1,6 @@
+use crate::can_id::CanId;
+use crate::relais_message::RelaisMsg;
+use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use esp_hal::gpio::interconnect::PeripheralOutput;
@@ -9,6 +12,22 @@ use esp_println::println;
 const BANK1: u8 = 0x26;
 const BANK2: u8 = 0x27;
 
+static RELAIS_CHANNEL: Channel<CriticalSectionRawMutex, RelaisCommand, 8> = Channel::new();
+
+pub async fn relais_handler(_id: CanId, data: &[u8], _remote_request: bool) {
+    if let Some((num, on, time)) = RelaisMsg::parse(data) {
+        RELAIS_CHANNEL
+            .send(RelaisCommand::Set {
+                num,
+                on,
+                duration_ms: time,
+            })
+            .await;
+    } else {
+        println!("RelaisHandler: invalid frame data: {:?}", data);
+    }
+}
+
 #[derive(Debug)]
 pub enum RelaisCommand {
     Set {
@@ -18,20 +37,18 @@ pub enum RelaisCommand {
     },
 }
 
-// Channel: public so others can send to it
-pub static RELAIS_CHANNEL: Channel<CriticalSectionRawMutex, RelaisCommand, 8> = Channel::new();
-
-pub struct Relais<'a> {
-    i2c: I2c<'a, Async>,
+pub struct Relais {
+    i2c: I2c<'static, Async>,
     expanders: [u8; 2],
 }
 
-impl<'a> Relais<'a> {
-    pub fn new<SDA: PeripheralOutput, SCL: PeripheralOutput>(
+impl Relais {
+    pub fn init<SDA: PeripheralOutput + 'static, SCL: PeripheralOutput + 'static>(
         i2c0: esp_hal::peripherals::I2C0,
-        sda: impl Peripheral<P = SDA> + 'a,
-        scl: impl Peripheral<P = SCL> + 'a,
-    ) -> Relais<'a> {
+        sda: impl Peripheral<P = SDA> + 'static,
+        scl: impl Peripheral<P = SCL> + 'static,
+        spawner: &Spawner,
+    ) {
         let mut i2c = I2c::new(i2c0, Config::default())
             .unwrap()
             .with_sda(sda)
@@ -43,10 +60,12 @@ impl<'a> Relais<'a> {
         i2c.write(BANK1, &[0x1, 0x0]).ok();
         i2c.write(BANK2, &[0x1, 0x0]).ok();
 
-        Relais {
+        let relais = Relais {
             expanders: [0, 0],
             i2c,
-        }
+        };
+
+        spawner.spawn(relais_task(relais)).unwrap();
     }
     /// Each entry: (expander index, bit position)
     const MAPPING: [(usize, u8); 12] = [
@@ -79,39 +98,8 @@ impl<'a> Relais<'a> {
     }
 }
 
-#[repr(C, packed)]
-#[derive(Debug, Copy, Clone)]
-pub struct RelaisMsg {
-    pub number: u8,
-    pub state: u8,
-    pub time_lo: u8,
-    pub time_hi: u8,
-    pub time_ext: u8,
-    pub bank: u8,
-    pub reserved_lo: u8,
-    pub reserved_hi: u8,
-}
-
-impl RelaisMsg {
-    pub fn parse(data: &[u8]) -> Option<(usize, bool, Option<u64>)> {
-        if data.len() < 2 {
-            return None;
-        }
-
-        let number = data[0] as usize;
-        let state = data[1] != 0;
-
-        if data.len() >= 5 {
-            let time: u64 = (data[2] as u64) | ((data[3] as u64) << 8) | ((data[4] as u64) << 16);
-            Some((number, state, Some(time)))
-        } else {
-            Some((number, state, None))
-        }
-    }
-}
-
 #[embassy_executor::task]
-pub async fn relais_task(mut relais: Relais<'static>) {
+async fn relais_task(mut relais: Relais) {
     println!("relais_task started");
     loop {
         let cmd = RELAIS_CHANNEL.receive().await;

@@ -7,8 +7,9 @@ use embassy_time::Timer;
 use esp_backtrace as _;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal_embassy::main;
-use raffstore::can::Can;
-use raffstore::relais::{relais_task, Relais};
+use raffstore::can;
+use raffstore::device;
+use raffstore::relais::Relais;
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
@@ -17,18 +18,22 @@ async fn main(spawner: Spawner) -> ! {
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    let can = Can::new(
+    device::init().await;
+
+    can::init(
         peripherals.TWAI0,
         peripherals.GPIO14,
         peripherals.GPIO13,
         &spawner,
+    )
+    .await;
+
+    Relais::init(
+        peripherals.I2C0,
+        peripherals.GPIO21,
+        peripherals.GPIO19,
+        &spawner,
     );
-
-    can.start().await;
-
-    let relais = Relais::new(peripherals.I2C0, peripherals.GPIO21, peripherals.GPIO19);
-
-    spawner.spawn(relais_task(relais)).unwrap();
 
     loop {
         // let frame = block!(twai.receive()).unwrap();
