@@ -2,6 +2,7 @@ use crate::can::send_can_message;
 use crate::can_id::CanId;
 use crate::can_message_type::CanMessageType;
 use crate::device_message::IdTypeMsg;
+use crate::error::{Component, ErrorCode, ErrorReport, Severity};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::Instant;
@@ -69,14 +70,21 @@ impl Device {
         self.hardware_revision(id, data, true).await;
         self.application_version(id, data, true).await;
     }
-    pub async fn id_type(&mut self, _id: CanId, data: &[u8], remote_request: bool) {
+    pub async fn id_type(&mut self, id: CanId, data: &[u8], remote_request: bool) {
         if remote_request {
             if self.uid0 == self.mac && self.uid1 == self.mac {
                 if data.len() == 2 {
                     self.id = data[0];
                     self.dtype = data[1];
                 } else {
-                    //error
+                    ErrorReport::send(
+                        Component::Device,
+                        ErrorCode::InvalidData,
+                        Severity::Warning,
+                        0,
+                        &[id.msg_type as u8, data.len() as u8, 0u8],
+                    )
+                    .await;
                 }
                 // ignore else, thats than not for this device
             }
@@ -119,7 +127,14 @@ impl Device {
                 self.baudrate = data[0];
                 esp_hal::system::software_reset();
             } else {
-                //error
+                ErrorReport::send(
+                    Component::Device,
+                    ErrorCode::InvalidData,
+                    Severity::Warning,
+                    0,
+                    &[id.msg_type as u8, data.len() as u8, 0u8],
+                )
+                .await;
             }
         }
     }
@@ -151,9 +166,16 @@ impl Device {
         } else {
             if data.len() == 1 {
                 self.hardware_revision = data[0];
-                //reboot
+                esp_hal::system::software_reset();
             } else {
-                //error
+                ErrorReport::send(
+                    Component::Device,
+                    ErrorCode::InvalidData,
+                    Severity::Warning,
+                    0,
+                    &[id.msg_type as u8, data.len() as u8, 0u8],
+                )
+                .await;
             }
         }
     }
