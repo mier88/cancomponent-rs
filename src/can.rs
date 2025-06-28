@@ -6,8 +6,7 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embedded_can::Frame;
-use esp_hal::gpio::interconnect::{PeripheralInput, PeripheralOutput};
-use esp_hal::peripheral::Peripheral;
+use esp_hal::gpio::{InputPin, OutputPin};
 use esp_hal::twai::{self, EspTwaiFrame, TimingConfig, TwaiMode, TwaiRx, TwaiTx};
 use esp_hal::Async;
 use esp_println::println;
@@ -17,10 +16,10 @@ pub static CAN_CHANNEL: Channel<CriticalSectionRawMutex, EspTwaiFrame, 8> = Chan
 static TWAI_RX: StaticCell<TwaiRx<'_, Async>> = StaticCell::new();
 static TWAI_TX: StaticCell<TwaiTx<'_, Async>> = StaticCell::new();
 
-pub async fn init<RX: PeripheralInput, TX: PeripheralOutput>(
-    twai: esp_hal::peripherals::TWAI0,
-    rx: impl Peripheral<P = RX> + 'static,
-    tx: impl Peripheral<P = TX> + 'static,
+pub async fn init(
+    twai: esp_hal::peripherals::TWAI0<'static>,
+    rx: impl InputPin + 'static,
+    tx: impl OutputPin + 'static,
     spawner: &Spawner,
 ) {
     const TC: TimingConfig = TimingConfig {

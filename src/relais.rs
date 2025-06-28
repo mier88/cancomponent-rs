@@ -8,7 +8,6 @@ use embassy_sync::channel::Channel;
 use embassy_time::{Instant, Timer};
 use esp_hal::gpio::interconnect::PeripheralOutput;
 use esp_hal::i2c::master::{Config, I2c};
-use esp_hal::peripheral::Peripheral;
 use esp_hal::Async;
 
 const BANK: [u8; 2] = [0x26, 0x27];
@@ -43,10 +42,10 @@ pub struct Relais {
 }
 
 impl Relais {
-    pub fn init<SDA: PeripheralOutput + 'static, SCL: PeripheralOutput + 'static>(
-        i2c0: esp_hal::peripherals::I2C0,
-        sda: impl Peripheral<P = SDA> + 'static,
-        scl: impl Peripheral<P = SCL> + 'static,
+    pub fn init(
+        i2c0: esp_hal::peripherals::I2C0<'static>,
+        sda: impl PeripheralOutput<'static>,
+        scl: impl PeripheralOutput<'static>,
         spawner: &Spawner,
     ) {
         let mut i2c = I2c::new(i2c0, Config::default())

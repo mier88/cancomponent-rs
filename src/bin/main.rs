@@ -9,6 +9,8 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal_embassy::main;
 use raffstore::can;
 use raffstore::device;
+use raffstore::extension::Extension;
+use raffstore::extension::ExtensionType;
 use raffstore::relais::Relais;
 
 #[main]
@@ -32,6 +34,15 @@ async fn main(spawner: Spawner) -> ! {
         peripherals.I2C0,
         peripherals.GPIO21,
         peripherals.GPIO19,
+        &spawner,
+    );
+
+    Extension::init(
+        ExtensionType::GpioInput4,
+        peripherals.GPIO15,
+        peripherals.GPIO16,
+        peripherals.GPIO17,
+        peripherals.GPIO18,
         &spawner,
     );
 
