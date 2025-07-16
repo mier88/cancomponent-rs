@@ -1,26 +1,31 @@
 #![no_std]
 #![no_main]
 
+use cancomponents::can;
+use cancomponents::config;
+use cancomponents::device;
+use cancomponents::extension::Extension;
+use cancomponents::extension::ExtensionType;
+use cancomponents::relais::Relais;
+use cancomponents::update;
 use embassy_executor::Spawner;
 use embassy_time::Duration;
 use embassy_time::Timer;
 use esp_backtrace as _;
+use esp_hal::clock::CpuClock;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal_embassy::main;
-use raffstore::can;
-use raffstore::device;
-use raffstore::extension::Extension;
-use raffstore::extension::ExtensionType;
-use raffstore::relais::Relais;
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
-    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let peripherals = esp_hal::init(esp_hal::Config::default().with_cpu_clock(CpuClock::_80MHz));
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
+    config::init().await;
     device::init().await;
+    update::init().await;
 
     can::init(
         peripherals.TWAI0,

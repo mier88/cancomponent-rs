@@ -1,6 +1,8 @@
-use crate::can_id::CanId;
+use esp_println::println;
+
 use crate::relais_manager::RelayManager;
-use crate::relais_message::{RelaisMessage, RelaisState};
+use cancomponents_core::can_id::CanId;
+use cancomponents_core::relais_message::{RelaisMessage, RelaisState};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select, Either};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -122,13 +124,17 @@ impl Relais {
 
     fn sethw(&mut self, num: usize, state: RelaisState) {
         if let Some(&(expander, bit)) = Self::MAPPING.get(num) {
+            println!("expander {expander}, bit {bit}");
             let mask = 1 << bit;
-            if state == RelaisState::Up {
+            if state == RelaisState::On {
                 self.expanders[expander] |= mask;
             } else {
                 self.expanders[expander] &= !mask;
             }
-
+            println!(
+                "i2c write to {:#x?}: {:#x?}",
+                BANK[expander], self.expanders[expander]
+            );
             self.i2c
                 .write(BANK[expander], &[0x1, self.expanders[expander]])
                 .ok();
@@ -154,10 +160,12 @@ async fn relais_task(mut relais: Relais) {
 
         match select(recv, delay).await {
             Either::First(msg) => {
+                println!("relais future met");
                 let changed =
                     manager.apply_command(msg.num, msg.state, msg.duration, Instant::now());
                 if changed {
                     relais.set(msg.num, msg.state);
+                    println!("set relais");
                 }
             }
             Either::Second(_) => {}

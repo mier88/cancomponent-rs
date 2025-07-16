@@ -1,4 +1,5 @@
 use crate::can_message_type::CanMessageType;
+use embedded_can::ExtendedId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CanId {
@@ -31,32 +32,28 @@ impl From<CanId> for u32 {
     }
 }
 
-impl From<CanId> for esp_hal::twai::ExtendedId {
+impl From<CanId> for ExtendedId {
     fn from(id: CanId) -> Self {
-        esp_hal::twai::ExtendedId::new(id.into()).unwrap()
+        ExtendedId::new(id.into()).expect("can id cannot be converted")
     }
 }
 
-impl TryFrom<u32> for CanId {
-    type Error = ();
-
-    fn try_from(raw: u32) -> Result<Self, Self::Error> {
-        let msg_type = CanMessageType::try_from((raw & 0xFF) as u8)?;
-        Ok(Self {
+impl From<u32> for CanId {
+    fn from(raw: u32) -> Self {
+        let msg_type = CanMessageType::from((raw & 0xFF) as u8);
+        Self {
             is_ng: ((raw >> 28) & 0x1) != 0,
             group: ((raw >> 22) & 0x3F) as u8,
             device_type: ((raw >> 16) & 0x3F) as u8,
             device_id: ((raw >> 8) & 0xFF) as u8,
             msg_type,
-        })
+        }
     }
 }
 
-impl TryFrom<embedded_can::ExtendedId> for CanId {
-    type Error = ();
-
-    fn try_from(id: embedded_can::ExtendedId) -> Result<Self, Self::Error> {
-        Self::try_from(id.as_raw())
+impl From<ExtendedId> for CanId {
+    fn from(id: ExtendedId) -> Self {
+        Self::from(id.as_raw())
     }
 }
 
@@ -67,5 +64,23 @@ impl core::fmt::Display for CanId {
             "NG:{} Group:{} Type:{} ID:{} Msg:{:?}",
             self.is_ng, self.group, self.device_type, self.device_id, self.msg_type
         )
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_device_init() {
+        let can_id = CanId::new(0x01, 0x01, CanMessageType::Nightlight);
+        let can_id_u32: u32 = can_id.into();
+        let can_id_back = CanId::try_from(can_id_u32);
+        assert!(can_id_back.is_ok());
+
+        let can_id_ext = TryInto::<ExtendedId>::try_into(can_id);
+        assert!(can_id_ext.is_ok());
+
+        let can_id_ext_back = TryInto::<CanId>::try_into(can_id_ext.unwrap());
+        assert!(can_id_ext_back.is_ok())
     }
 }

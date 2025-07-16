@@ -1,4 +1,4 @@
-use crate::can_id::CanId;
+use cancomponents_core::can_id::CanId;
 use crate::error::{Component, ErrorCode, ErrorReport, Severity};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;

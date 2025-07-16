@@ -1,4 +1,3 @@
-use crate::error::{Component, ErrorCode, ErrorReport, Severity};
 use embassy_time::Duration;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,15 +34,6 @@ pub struct RelaisMessage {
 impl RelaisMessage {
     pub async fn from_bytes(data: &[u8]) -> Result<Self, ()> {
         if data.len() < 2 {
-            // Fehler: unvollständig
-            ErrorReport::send(
-                Component::Relais,
-                ErrorCode::InvalidData,
-                Severity::Warning,
-                0,
-                b"tsh",
-            )
-            .await;
             return Err(());
         }
 

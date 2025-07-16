@@ -1,4 +1,4 @@
-use crate::relais_message::RelaisState;
+use cancomponents_core::relais_message::RelaisState;
 use embassy_time::{Duration, Instant};
 use heapless::{Entry, FnvIndexMap};
 

@@ -1,5 +1,5 @@
 use crate::can::send_can_message;
-use crate::can_message_type::CanMessageType;
+use cancomponents_core::can_message_type::CanMessageType;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_time::{Duration, Instant};

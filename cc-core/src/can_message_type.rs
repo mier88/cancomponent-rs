@@ -45,14 +45,13 @@ pub enum CanMessageType {
     LogDownload = 155,
     Ping = 156,
     PingDisable = 157,
+    InvalidMessage = 255,
 }
 
-impl core::convert::TryFrom<u8> for CanMessageType {
-    type Error = ();
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+impl From<u8> for CanMessageType {
+    fn from(value: u8) -> Self {
         use CanMessageType::*;
-        let result = match value {
+        match value {
             0 => Available,
             1 => DeviceError,
             2 => Restart,
@@ -95,8 +94,7 @@ impl core::convert::TryFrom<u8> for CanMessageType {
             155 => LogDownload,
             156 => Ping,
             157 => PingDisable,
-            _ => return Err(()),
-        };
-        Ok(result)
+            _ => InvalidMessage,
+        }
     }
 }
