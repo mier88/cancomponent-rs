@@ -90,7 +90,6 @@ impl Device {
         *DEVICE_TYPE.lock().await = dtype;
         esp_hal::system::software_reset();
         //}
-        Some(())
     }
 
     pub async fn uid0(&mut self, _id: CanId, data: &[u8], remote_request: bool) {

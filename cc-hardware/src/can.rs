@@ -22,6 +22,7 @@ static TWAI_TX: StaticCell<TwaiTx<'_, Async>> = StaticCell::new();
 
 pub static DEVICE_ID: Mutex<CriticalSectionRawMutex, u8> = Mutex::new(255);
 pub static DEVICE_TYPE: Mutex<CriticalSectionRawMutex, u8> = Mutex::new(255);
+pub static SILENCE: Mutex<CriticalSectionRawMutex, bool> = Mutex::new(false);
 
 pub fn make_filter(device_type: u8, device_id: u8) -> DualExtendedFilter {
     let is_ng = true;
@@ -240,7 +241,13 @@ pub async fn dispatch(frame: &EspTwaiFrame) {
     }
 }
 
-async fn silence(_frame: &EspTwaiFrame) {}
+async fn silence(frame: &EspTwaiFrame) {
+    let mut silence = SILENCE.lock().await;
+    let data = frame.data();
+    if data.len() == 1 {
+        *silence = data[0] == 1;
+    }
+}
 
 async fn ping(id: CanId) {
     send_can_message(id.msg_type, &[], false).await;
@@ -289,6 +296,10 @@ pub async fn can_send_task(tx: &'static mut TwaiTx<'static, Async>) {
     println!("can_send_task started");
     loop {
         let frame = CAN_CHANNEL.receive().await;
+        let silence = SILENCE.lock().await;
+        if *silence {
+            continue;
+        }
         println!("can_send_task:{frame:?}");
         tx.transmit_async(&frame).await.unwrap();
     }
